@@ -12,6 +12,12 @@ abstract class ExprEncoder {
 
   type SymbStore = Map[Var, String]
 
+  /**
+   * Symbolic store for arrays. Maps the identifier of an array to another map,
+   * which maps the index to the symbolic
+   */
+  //type SymbArrayStore = Map[String, Map[BigInt, String]]
+
   def encode(expr : Expr)(implicit store : SymbStore) : String
 
   def encode(expr : BExpr)(implicit store : SymbStore) : String

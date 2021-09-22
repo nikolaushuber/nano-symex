@@ -2,7 +2,7 @@
 
 object SMTTest extends App {
 
-  for (smt <- List(new PrincessSMT, new Z3SMT))
+  for (smt <- List(new Z3SMT))
   try {
     import smt._
     println("Testing SMT solver " + name + " ...")

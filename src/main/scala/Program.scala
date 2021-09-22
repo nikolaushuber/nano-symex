@@ -18,16 +18,32 @@ object Program {
     def =/=(that : Expr) = !Eq(that, this)
   }
 
-  case class Var     (name : String,
-                      ptype : PType.Value = PType.PInt)   extends Expr
-  case class IntConst(value : BigInt)                     extends Expr
-  case class Plus    (left : Expr, right : Expr)          extends Expr
-  case class Times   (left : Expr, right : Expr)          extends Expr
+  case class Var (name : String, ptype : PType.Value = PType.PInt) extends Expr {
+    override def toString = name 
+  }
+
+  case class IntConst(value : BigInt) extends Expr {
+    override def toString = value.toString
+  }
+
+  case class Plus (left : Expr, right : Expr) extends Expr {
+    override def toString = s"(${left} + ${right})"
+  }
+
+  case class Times (left : Expr, right : Expr) extends Expr {
+    override def toString = s"(${left} * ${right})"
+  }
+
+  case class Array (name : String, ptype : PType.Value = PType.PArray) extends Expr {
+  }
+
+  case class ArrayElement (array: Array, at: Expr) extends Expr {
+    override def toString = s"${array.name}[${at}]"
+  }
 
   implicit def int2Expr(v : Int) : Expr = IntConst(v)
 
   object PType extends Enumeration {
-    // TODO: PArray is not handled yet
     val PInt, PArray = Value
   }
 
@@ -43,12 +59,25 @@ object Program {
     def unary_!         = Not(this)
   }
 
-  case class Eq  (left : Expr, right : Expr)     extends BExpr
-  case class Leq (left : Expr, right : Expr)     extends BExpr
+  case class Eq  (left : Expr, right : Expr) extends BExpr {
+    override def toString = s"${left} == ${right}"
+  }
 
-  case class Not (sub : BExpr)                   extends BExpr
-  case class And (left : BExpr, right : BExpr)   extends BExpr
-  case class Or  (left : BExpr, right : BExpr)   extends BExpr
+  case class Leq (left : Expr, right : Expr) extends BExpr {
+    override def toString = s"${left} <= ${right}"
+  }
+
+  case class Not (sub : BExpr) extends BExpr {
+    override def toString = s"(not ${sub})"
+  }
+
+  case class And (left : BExpr, right : BExpr) extends BExpr {
+    override def toString = s"(${left} and ${right})"
+  }
+
+  case class Or  (left : BExpr, right : BExpr)   extends BExpr {
+    override def toString = s"(${left} or ${right})"
+  }
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -58,14 +87,26 @@ object Program {
 
   abstract sealed class Prog
 
-  case object Skip                                           extends Prog
+  case object Skip extends Prog
 
-  case class  Assign    (v : Expr, rhs : Expr)               extends Prog
-  case class  Assert    (cond : BExpr)                       extends Prog
+  case class  Assign (v : Expr, rhs : Expr) extends Prog {
+    override def toString = s"${v} := ${rhs}"
+  }
 
-  case class  Sequence  (left : Prog, right : Prog)          extends Prog
-  case class  IfThenElse(cond : BExpr, b1 : Prog, b2 : Prog) extends Prog
-  case class  While     (cond : BExpr, body : Prog)          extends Prog
+  case class  Assert (cond : BExpr) extends Prog {
+    override def toString = s"assert(${cond})"
+  }
+
+  case class  Sequence  (left : Prog, right : Prog) extends Prog {
+    override def toString = s"${left};\n${right}"
+  }
+
+  case class  IfThenElse(cond : BExpr, b1 : Prog, b2 : Prog) extends Prog {
+    override def toString = s"if(${cond}) {\n${b1}\n} else {\n${b2}\n}"
+  }
+  case class  While     (cond : BExpr, body : Prog) extends Prog {
+    override def toString = s"while(${cond}) {\n${body}\n}"
+  }
 
   def Prog(stmts : Prog*) : Prog =
     if (stmts.isEmpty)
@@ -81,6 +122,10 @@ object Program {
 
   implicit def var2LHS(v : Var) = new AnyRef {
     def :=(that : Expr) = Assign(v, that)
+  }
+
+  implicit def arrayElem2LHS(a : ArrayElement) = new AnyRef {
+    def :=(that : Expr) = Assign(a, that)
   }
 
   implicit def ite2RichIte(p : IfThenElse) = new AnyRef {
@@ -111,7 +156,7 @@ object ExprTest extends App {
   println("f: " + f)
   println("g: " + g)
 
-  for (smt <- List(new Z3SMT, new PrincessSMT)) try {
+  for (smt <- List(new Z3SMT)) try {
     import smt._
     println("Testing SMT solver " + name + " ...")
 

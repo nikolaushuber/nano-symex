@@ -54,7 +54,7 @@ abstract class SMT {
   /** 
    * Query array
    */
-  //def getArrayValue(name : String) : Map[BigInt, BigInt]
+  def getArrayValue(name : String) : Map[BigInt, BigInt]
 
   /**
    * Reset the SMT solver to the initial state.
@@ -145,6 +145,28 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
       case str => 0
     }
   }
+
+  /** DISCLAIMER: This is ugly!!! */
+  def getArrayValue(name : String) : Map[BigInt, BigInt] = {
+    sendCommand("(get-value (" + name + "))")
+    val lineread = readLine 
+
+    // find the number of stores 
+    var ret1 = lineread.replaceAll(raw"\(\(as const \(Array Int Int\)\) [0-9]*\)", "")
+    val storePattern : Regex = raw"\(store [0-9]* [- 0-9]*\)".r
+
+    var arrayStore = storePattern.findFirstMatchIn(ret1)
+
+    var arrayMap : Map[BigInt, BigInt] = Map()
+
+    while (storePattern.findFirstMatchIn(ret1) != None) {
+        var tmp = storePattern.findFirstMatchIn(ret1).get.matched.split("\\s+") 
+        arrayMap = arrayMap + (BigInt(tmp(1)) -> BigInt(tmp(2).replaceAll(raw"\)", "")))
+        ret1 = storePattern.replaceAllIn(ret1, "")
+    }
+
+    arrayMap
+   }
 
   def reset : Unit = {
     sendCommand("(reset)")

@@ -29,7 +29,7 @@ class InsertionSort(A : Program.Var, len : Program.IntConst) {
 object InsertionSortTest extends App {
     import Program._ 
     val A = Var("a", PType.PArray) 
-    val prog = new InsertionSort(A, IntConst(8)) 
+    val prog = new InsertionSort(A, IntConst(4)) 
 
     //println(prog.p)
 

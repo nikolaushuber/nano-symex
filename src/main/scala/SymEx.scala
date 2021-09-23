@@ -9,7 +9,7 @@ class SymEx(encoder : ExprEncoder, spawnSMT : => SMT) {
 
   import encoder._
   import Program._
-  import PType.PInt
+  import PType.{PInt, PArray}
   import smt._
 
   def shutdown = smt.shutdown
@@ -17,10 +17,15 @@ class SymEx(encoder : ExprEncoder, spawnSMT : => SMT) {
   smt.logCommands(false)
 
   def exec(p : Prog, variables : Seq[Var], depth : Int = Integer.MAX_VALUE) = {
-    for (v@Var(name, PInt) <- variables)
-      declareConst(name, IntType)
+    for (Var(name, vartype) <- variables) {
+      declareConst(name, vartype match {
+        case PInt => IntType 
+        case PArray => ArrayType
+      })
+    }
+
     val store =
-      (for (v@Var(name, PInt) <- variables) yield (v -> name)).toMap
+      (for (v@Var(name, typ) <- variables) yield (v -> name)).toMap
 
     execHelp(p, List(), depth)(store)
 
@@ -46,6 +51,16 @@ class SymEx(encoder : ExprEncoder, spawnSMT : => SMT) {
       val newStore = store + (lhs -> newConst)
       execHelp(rest, op :: ops, depth)(newStore)
     }
+
+    
+    case Sequence(op@Assign(lhs : ArrayElement, rhs), rest) => {
+      val nConst = freshConst(ArrayType)
+      addAssertion("(= " + nConst + " (store " + store(lhs.array) + " " + 
+        encode(lhs.at) + " " + encode(rhs) + "))")
+      val newStore = store + (lhs.array -> nConst)
+      execHelp(rest, op :: ops, depth)(newStore)
+    }
+    
 
     case Sequence(IfThenElse(cond, b1, b2), rest) => {
       val condStr = encode(cond)

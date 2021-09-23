@@ -51,6 +51,11 @@ abstract class SMT {
    */
   def getSatValue(name : String) : BigInt
 
+  /** 
+   * Query array
+   */
+  //def getArrayValue(name : String) : Map[BigInt, BigInt]
+
   /**
    * Reset the SMT solver to the initial state.
    */
@@ -98,6 +103,9 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
 
   def declareConst(name : String, typ : String) : Unit =
     sendCommand("(declare-const " + name + " " + typ + ")")
+
+  def declareArray(name : String, typ : String) : Unit =
+    sendCommand("(declare-fun " + name + " () (Array Int " + typ + "))")
 
   def freshConst(typ : String) : String = {
     val name = "const_" + nameCounter

@@ -34,10 +34,7 @@ object Program {
     override def toString = s"(${left} * ${right})"
   }
 
-  case class Array (name : String, ptype : PType.Value = PType.PArray) extends Expr {
-  }
-
-  case class ArrayElement (array: Array, at: Expr) extends Expr {
+  case class ArrayElement (array: Var, at: Expr) extends Expr {
     override def toString = s"${array.name}[${at}]"
   }
 
@@ -131,6 +128,10 @@ object Program {
   implicit def ite2RichIte(p : IfThenElse) = new AnyRef {
     def Else(branch : Prog*) =
       IfThenElse(p.cond, p.b1, Prog(branch : _*))
+  }
+
+  implicit def arraySelect(a : Var) = new AnyRef {
+    def apply(i : Expr) = ArrayElement(a, i)
   }
 
 }

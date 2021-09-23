@@ -3,7 +3,7 @@ object _ArrayTest1 {
 
     val x = Var("x")
     val y = Var("y")
-    val a = Array("a")
+    val a = Var("a", PType.PArray)
 
     val p = Prog(
         ArrayElement(a, 0) := 0,
@@ -16,4 +16,5 @@ object _ArrayTest1 {
 
 object ArrayTest1 extends App {
     println(_ArrayTest1.p)
+    //val symex = new SymEx(IntExprEncoder, new Z3SMT)
 }

@@ -104,9 +104,6 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
   def declareConst(name : String, typ : String) : Unit =
     sendCommand("(declare-const " + name + " " + typ + ")")
 
-  def declareArray(name : String, typ : String) : Unit =
-    sendCommand("(declare-fun " + name + " () (Array Int " + typ + "))")
-
   def freshConst(typ : String) : String = {
     val name = "const_" + nameCounter
     nameCounter = nameCounter + 1
@@ -154,8 +151,6 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
     // find the number of stores 
     var ret1 = lineread.replaceAll(raw"\(\(as const \(Array Int Int\)\) [0-9]*\)", "")
     val storePattern : Regex = raw"\(store [0-9]* [- 0-9]*\)".r
-
-    var arrayStore = storePattern.findFirstMatchIn(ret1)
 
     var arrayMap : Map[BigInt, BigInt] = Map()
 

@@ -26,7 +26,7 @@ object SMTArrayTest extends App {
     import smt._ 
     println("Testing SMT solver " + name + " with arrays ...")
 
-    declareArray("a", "Int")
+    declareConst("a", "(Array Int Int)")
 
     addAssertion("(= a (store a 0 11))")
     addAssertion("(= a (store a 1 12))")

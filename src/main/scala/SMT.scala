@@ -88,18 +88,27 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
 
   val NumberPattern: Regex = " ([0-9]+)".r.unanchored
   val NegnumPattern: Regex = "- ([0-9]+)".r.unanchored
+  val SatregNegNum : Regex = raw"\(\(\(.*\) - ([0-9]+)\)\)".r
+  val SatregNum    : Regex = raw"\(\(\(.*\) ([0-9]+)\)\)".r
   
   def logCommands(flag : Boolean) =
     logCmds = flag
 
   def sendCommand(cmd : String) : Unit = {
-    if (logCmds)
+    if (logCmds) {
       println("> " + cmd)
+    }
     stdinWriter.println(cmd)
     stdinWriter.flush
   }
 
-  def readLine : String = stdoutReader.readLine
+  def readLine : String = {
+    val ret = stdoutReader.readLine
+    if (logCmds) {
+      println(">>>" + ret)
+    }
+    ret
+  }
 
   def declareConst(name : String, typ : String) : Unit =
     sendCommand("(declare-const " + name + " " + typ + ")")
@@ -110,6 +119,13 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
     declareConst(name, typ)
     name
   }
+
+/*
+  private var declaredArrays : Map[String, Int] = Map()
+  def freshArrayIndex(arrName : String, idx : Int) : String = {
+    if(declaredArrays.contains(arrName))
+  }
+  */
 
   def addAssertion(str : String) : Unit =
     sendCommand("(assert " + str + ")")
@@ -137,6 +153,8 @@ abstract class SMTProcess(cmd : Array[String]) extends SMT {
   def getSatValue(name : String) : BigInt = {
     sendCommand("(get-value (" + name + "))")
     readLine match {
+      case SatregNegNum(assignment) => BigInt("-" + assignment)
+      case SatregNum(assignment) => BigInt(assignment)
       case NegnumPattern(assignment) => BigInt("-" + assignment)
       case NumberPattern(assignment) => BigInt(assignment)
       case str => 0

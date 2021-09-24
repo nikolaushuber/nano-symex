@@ -4,15 +4,20 @@ class InsertionSort(A : Program.Var, len : Program.IntConst) {
     var i = Var("i")
     var j = Var("j")
     var x = Var("x")
+    var aj = Var("Aj")
+    var ai = Var("Ai")
+    var ai1 = Var("Ai1")
 
     val p = Prog (
         i := 1,
         While(i < len) (
             x := A(i),
             j := i - 1,
-            While(j >= 0 & A(j) > x) (
-                A(j + 1) := A(j),
-                j := j - 1
+            aj := A(j), 
+            While(j >= 0 & aj > x) (
+                A(j + 1) := aj,
+                j := j - 1,
+                aj := A(j)
             ),
             A(j+1) := x,
             i := i + 1
@@ -20,7 +25,9 @@ class InsertionSort(A : Program.Var, len : Program.IntConst) {
 
         i := 0,
         While(i+1 < len) (
-            Assert(A(i) <= A(i+1)),
+            ai := A(i),
+            ai1 := A(i+1),
+            Assert(ai <= ai1),
             i := i + 1
         )
     )
@@ -29,7 +36,7 @@ class InsertionSort(A : Program.Var, len : Program.IntConst) {
 object InsertionSortTest extends App {
     import Program._ 
     val A = Var("a", PType.PArray) 
-    val prog = new InsertionSort(A, IntConst(4)) 
+    val prog = new InsertionSort(A, IntConst(7)) 
 
     //println(prog.p)
 
@@ -37,14 +44,6 @@ object InsertionSortTest extends App {
 
     val symex = new SymEx(IntExprEncoder, new Z3SMT)
     symex.smt.logCommands(false)
-    symex.exec(prog.p, List(A, i, j, x), 200)
+    symex.exec(prog.p, List(A, i, j, x, aj, ai, ai1), 200)
     
-}
-
-object InsertionSortTest2 extends App {
-    import Program._ 
-    val A = Var("a", PType.PArray) 
-    val prog = new InsertionSort(A, IntConst(4)) 
-
-    println(normalize(prog.p))
 }

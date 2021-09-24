@@ -17,23 +17,25 @@ class SymEx(encoder : ExprEncoder, spawnSMT : => SMT) {
   smt.logCommands(false)
 
   def exec(p : Prog, variables : Seq[Var], depth : Int = Integer.MAX_VALUE) = {
-    for (Var(name, vartype) <- variables) {
-      declareConst(name, vartype match {
-        case PInt => IntType 
-        case PArray => ArrayType
-      })
-    }
+    // Only need to declare the integer constants
+    for (Var(name, PInt) <- variables) 
+      declareConst(name, IntType) 
 
+    // In the normal store, we only store simple Int variables
     val store =
-      (for (v@Var(name, typ) <- variables) yield (v -> name)).toMap
+      (for (v@Var(name, PInt) <- variables) yield (v -> name)).toMap
 
-    execHelp(p, List(), depth)(store)
+    // In the array store, we keep all the array variables
+    val arrayStore : SymbArrayStore = 
+      (for (a@Var(name, PArray) <- variables) yield (a -> Map[BigInt, String]())).toMap
+
+    execHelp(p, List(), depth)(store, arrayStore)
 
     reset
   }
 
   def execHelp(p : Prog, ops : List[Prog], depth : Int)
-              (implicit store : SymbStore) : Unit = p match {
+              (implicit store : SymbStore, arrayStore : SymbArrayStore) : Unit = p match {
 
     case _ if ops.size > depth => ()
 
@@ -45,20 +47,83 @@ class SymEx(encoder : ExprEncoder, spawnSMT : => SMT) {
     case Sequence(Sequence(p1, p2), p3) =>
       execHelp(Sequence(p1, Sequence(p2, p3)), ops, depth)
 
+    
+
     case Sequence(op@Assign(lhs : Var, rhs), rest) => {
-      val newConst = freshConst(IntType)
-      addAssertion("(= " + newConst + " " + encode(rhs) + ")")
-      val newStore = store + (lhs -> newConst)
-      execHelp(rest, op :: ops, depth)(newStore)
+      // We need to distinguish between two cases, rhs being 
+      // an expression, and rhs being an array access
+      rhs match {
+        case arr@ArrayElement(a, i) => {
+          if(isSat) {
+            val nConst = freshConst(IntType)
+            // the index might be given as an expression, not a simple Int
+            val idx : BigInt = getSatValue(encode(i)) 
+            // Add assertion that the index of the array element we are 
+            // looking at corresponds to the value of the expression
+            val cond = "(= " + encode(i) + " " + idx + ")" 
+
+            push // branch for idx == encode(i)
+            addAssertion(cond) 
+
+            // Update the symbolic array store if necessary 
+            val newArrayStore = 
+              if (!arrayStore(a).contains(idx)) {
+                //The array a does not contain a value for the current index yet
+                val newVal = freshConst(IntType)
+                arrayStore + (a -> (arrayStore(a) + (idx -> newVal)))
+              } else 
+                arrayStore 
+
+            // This will pick up the new variable just created in case 
+            // this is the first access to this specific index in the array
+            val currArrayVar = newArrayStore(a)(idx)
+            addAssertion("(= " + nConst + " " + currArrayVar + ")")
+            val newStore = store + (lhs -> nConst)
+            execHelp(rest, op :: ops, depth)(newStore, newArrayStore) 
+            pop
+            push // branch for idx != encode(i)
+            addAssertion("(not " + cond + ")") 
+            execHelp(Sequence(op, rest), op :: ops, depth)(store, arrayStore)
+            pop
+          }
+        }
+
+        case _ => {
+          val newConst = freshConst(IntType)
+          addAssertion("(= " + newConst + " " + encode(rhs) + ")")
+          // If lhs already exists in store, it will be overwritten! 
+          val newStore = store + (lhs -> newConst)
+          execHelp(rest, op :: ops, depth)(newStore, arrayStore)
+        }
+      }
+      
     }
 
     
-    case Sequence(op@Assign(lhs : ArrayElement, rhs), rest) => {
-      val nConst = freshConst(ArrayType)
-      addAssertion("(= " + nConst + " (store " + store(lhs.array) + " " + 
-        encode(lhs.at) + " " + encode(rhs) + "))")
-      val newStore = store + (lhs.array -> nConst)
-      execHelp(rest, op :: ops, depth)(newStore)
+    case Sequence(op@Assign(ArrayElement(a, i), rhs), rest) => {
+      // Since we only analyze normalized programs, rhs cannot be an array access
+
+      if(isSat) { // allows us to use getSatValue for index calculation
+        // i might be an expression and not a simple Int 
+        val idx = getSatValue(encode(i))
+        val nConst = freshConst(IntType)
+        // if there is already a value at index idx, we need to reassign 
+        // it to the new constant nConst
+        val newArrayStore = arrayStore + (a -> (arrayStore(a) + (idx -> nConst)))
+        // add assertion that the index coincides with the value of the expression 
+        val cond = "(= " + encode(i) + " " + idx + ")"
+
+        push // branch for idx == encode(i)
+        // add assertion that the new array element equals the value of rhs
+        addAssertion("(= " + nConst + " " + encode(rhs) + ")")
+        addAssertion(cond)
+        execHelp(rest, op :: ops, depth)(store, newArrayStore)
+        pop
+        push // branch for idx != encode(i)
+        addAssertion("(not " + cond + ")")
+        execHelp(Sequence(op, rest), op :: ops, depth)(store, arrayStore) 
+        pop 
+      }
     }
     
 

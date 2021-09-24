@@ -134,6 +134,25 @@ object Program {
     def apply(i : Expr) = ArrayElement(a, i)
   }
 
+  private var tmpCounter = 0
+  def getArrayTmpVar = {
+    val varTmp = Var("tmp_" + tmpCounter, PType.PInt)
+    tmpCounter += 1
+    varTmp
+  }
+
+  def normalize(p : Prog) : Prog = {
+    p match {
+      case Assign(arr1@ArrayElement(_,_), arr2@ArrayElement(_,_)) =>
+        val tmp = getArrayTmpVar 
+        Sequence(Assign(tmp, arr2), Assign(arr1, tmp))
+      case Sequence(left, right) => Sequence(normalize(left), normalize(right))
+      case IfThenElse(cond, b1, b2) => IfThenElse(cond, normalize(b1), normalize(b2))
+      case While(cond, body) => While(cond, normalize(body))
+      case statement => statement 
+    }
+  }
+
 }
 
 object ExampleExpr {

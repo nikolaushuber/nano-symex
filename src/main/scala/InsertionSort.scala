@@ -40,3 +40,11 @@ object InsertionSortTest extends App {
     symex.exec(prog.p, List(A, i, j, x), 200)
     
 }
+
+object InsertionSortTest2 extends App {
+    import Program._ 
+    val A = Var("a", PType.PArray) 
+    val prog = new InsertionSort(A, IntConst(4)) 
+
+    println(normalize(prog.p))
+}
